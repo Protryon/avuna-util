@@ -29,8 +29,6 @@ struct config* config_load(const char* file);
 
 const char* config_get(const struct config_node* cat, const char* name);
 
-char* config_get_default(struct config_node* node, char* key, char* def);
-
 struct config_node* config_get_unique_cat(const struct config* cfg, const char* cat);
 
 #endif /* CONFIG_H_ */
