@@ -12,7 +12,7 @@
 
 struct list* list_new(size_t initial_capacity, struct mempool* pool) {
     struct list* list = pmalloc(pool, sizeof(struct list));
-    list->capacity = initial_capacity;
+    list->capacity = initial_capacity < 8 ? 8 : initial_capacity;
     list->data = pmalloc(pool, initial_capacity * sizeof(void*));
     list->size = 0;
     list->count = 0;
