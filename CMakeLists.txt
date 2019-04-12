@@ -26,3 +26,13 @@ install(TARGETS avuna-util
         LIBRARY DESTINATION lib)
 
 install(FILES ${util_headers} DESTINATION "include/avuna/")
+
+set(CPACK_DEBIAN_PACKAGE_NAME avunautils)
+set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
+set(CPACK_PACKAGE_VERSION 1.0.0)
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "libssl1.1")
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Max Bruce")
+set(CPACK_DEBIAN_PACKAGE_DESCRIPTION "General utilities for avuna projects")
+set(CPACK_GENERATOR DEB)
+
+include(CPack)
