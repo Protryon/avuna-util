@@ -20,15 +20,7 @@ struct list* list_new(size_t initial_capacity, struct mempool* pool) {
     return list;
 }
 
-int list_free(struct list* list) {
-    if (list == NULL || list->data == NULL || list->pool != NULL) return -1;
-    free(list->data);
-    list->data = NULL;
-    free(list);
-    return 0;
-}
-
-int list_add(struct list* list, void* data) {
+int list_append(struct list* list, void* data) {
     for (int i = 0; i < list->size; i++) {
         if (list->data[i] == NULL) {
             list->count++;

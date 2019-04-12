@@ -244,14 +244,14 @@ void str_split(char* str, char* delim, struct list* out) {
     size_t li = 0;
     for (size_t i = 0; i < si; i++) {
         if (str_prefixes(str + i, delim)) {
-            list_add(out, str + li);
+            list_append(out, str + li);
             str[i] = 0;
             i += strlen(delim) - 1;
             li = i + 1;
         }
     }
     if (li != si) {
-        list_add(out, str + li);
+        list_append(out, str + li);
     }
 }
 
@@ -263,14 +263,14 @@ void str_split_case(char* str, char* delim, struct list* out) {
     size_t li = 0;
     for (size_t i = 0; i < si; i++) {
         if (str_prefixes_case(str + i, delim)) {
-            list_add(out, str + li);
+            list_append(out, str + li);
             str[i] = 0;
             i += strlen(delim) - 1;
             li = i + 1;
         }
     }
     if (li != si) {
-        list_add(out, str + li);
+        list_append(out, str + li);
     }
 }
 

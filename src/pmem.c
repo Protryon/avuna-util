@@ -95,7 +95,7 @@ void phook(struct mempool* pool, void (*hook)(void* arg), void* arg) {
     struct hook_entry* entry = pmalloc(pool, sizeof(struct hook_entry));
     entry->hook = hook;
     entry->arg = arg;
-    list_add(pool->hooks, entry);
+    list_append(pool->hooks, entry);
 }
 
 struct _mempool_pair { // always allocated in child

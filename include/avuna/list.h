@@ -21,9 +21,7 @@ struct list {
 
 struct list* list_new(size_t initial_capacity, struct mempool* pool);
 
-int list_free(struct list* list);
-
-int list_add(struct list* list, void* data);
+int list_append(struct list* list, void* data);
 
 int list_find_remove(struct list* list, void* data);
 

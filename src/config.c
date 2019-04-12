@@ -63,14 +63,14 @@ struct config* config_load(const char* file) {
             wl = str_trim(wl);
             char* category = str_dup(wl, 0, cfg->pool);
             cur_node = pmalloc(cfg->pool, sizeof(struct config_node));
-            list_add(cfg->allNodes, cur_node);
+            list_append(cfg->allNodes, cur_node);
             cur_node->map = hashmap_new(16, cfg->pool);
             struct list* current_cat_list = hashmap_get(cfg->nodeListsByCat, category);
             if (current_cat_list == NULL) {
                 current_cat_list = list_new(8, cfg->pool);
                 hashmap_put(cfg->nodeListsByCat, category, current_cat_list);
             }
-            list_add(current_cat_list, cur_node);
+            list_append(current_cat_list, cur_node);
             cur_node->category = category;
 
             if (id == NULL) {
