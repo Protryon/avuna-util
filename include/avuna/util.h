@@ -20,4 +20,6 @@ int memeq(const unsigned char* mem1, size_t mem1_size, const unsigned char* mem2
 
 int memseq(const unsigned char* mem, size_t mem_size, const unsigned char c);
 
+uint8_t* read_file_fully(struct mempool* pool, char* path, size_t* length);
+
 #endif /* UTIL_H_ */

@@ -11,6 +11,7 @@
 #include <linux/limits.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <fcntl.h>
 
 void* xcopy(const void* ptr, size_t size, size_t expand, struct mempool* pool) {
     void* alloc = pmalloc(pool, size + expand);
@@ -66,4 +67,29 @@ int memseq(const unsigned char* mem, size_t mem_size, const unsigned char c) {
         }
     }
     return 1;
+}
+
+uint8_t* read_file_fully(struct mempool* pool, char* path, size_t* length) {
+    uint8_t* data = pmalloc(pool, 4097);
+    size_t data_cap = 4096;
+    size_t data_index = 0;
+    int fd = open(path, O_RDONLY);
+    if (fd < 0) {
+        return NULL;
+    }
+    ssize_t r = 0;
+    while ((r = read(fd, data + data_index, data_cap - data_index)) > 0) {
+        data_index += r;
+        if (data_index >= data_cap) {
+            data_cap *= 2;
+            data = prealloc(pool, data, data_cap + 1);
+        }
+    }
+    close(fd);
+    if (r < 0) {
+        return NULL;
+    }
+    data[data_index] = 0;
+    *length = data_index;
+    return data;
 }
