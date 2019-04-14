@@ -28,6 +28,8 @@ struct hashmap {
     pthread_rwlock_t rwlock;
 };
 
+// WARNING: ITER_MAP does not synchronize multithreaded hashmaps/sets, it is up to the consumer to do so to prevent accidental dead locks due to exiting control flow.
+
 #define ITER_MAP(map) {for (size_t bucket_i = 0; bucket_i < map->bucket_count; bucket_i++) { for (struct hashmap_bucket_entry* bucket_entry = map->buckets[bucket_i]; bucket_entry != NULL; bucket_entry = bucket_entry->next) { char* str_key = bucket_entry->key; void* ptr_key = (void*)bucket_entry->key; void* value = bucket_entry->data;
 
 #define ITER_MAP_END() }}}
