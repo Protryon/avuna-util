@@ -52,21 +52,31 @@ void* hashmap_get(struct hashmap* hashmap, char* key);
 
 void* hashmap_getptr(struct hashmap* hashmap, void* key);
 
+void* hashmap_getint(struct hashmap* hashmap, uint64_t key);
+
 int hashset_has(struct hashset* set, char* key);
 
 int hashset_hasptr(struct hashset* set, void* key);
+
+int hashset_hasint(struct hashset* set, uint64_t key);
 
 void hashmap_put(struct hashmap* hashmap, char* key, void* data);
 
 void hashmap_putptr(struct hashmap* hashmap, void* key, void* data);
 
+void hashmap_putint(struct hashmap* hashmap, uint64_t key, void* data);
+
 void hashset_add(struct hashset* set, char* key);
 
 void hashset_addptr(struct hashset* set, void* key);
 
+void hashset_addint(struct hashset* set, uint64_t key);
+
 void hashset_rem(struct hashset* set, char* key);
 
 void hashset_remptr(struct hashset* set, void* key);
+
+void hashset_remint(struct hashset* set, uint64_t key);
 
 struct hashmap* hashmap_clone(struct hashmap* hashmap, struct mempool* pool);
 
