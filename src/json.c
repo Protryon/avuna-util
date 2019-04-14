@@ -210,7 +210,7 @@ ssize_t json_parse(struct mempool* parent, struct json_object** root, char* json
 	struct mempool* pool = mempool_new();
 	pchild(parent, pool);
 	char* original_json = json;
-	*root = __json_recur_object(pool, NULL, &json);
+	*root = __json_recur_value(pool, NULL, &json);
 	return json - original_json;
 }
 
