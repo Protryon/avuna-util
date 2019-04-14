@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <avuna/pmem.h>
 #include <avuna/hash.h>
+#include <avuna/llist.h>
 
 #define JSON_STRING 0
 #define JSON_NUMBER 1

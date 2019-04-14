@@ -12,11 +12,15 @@ void buffer_init(struct buffer* buffer, struct mempool* pool) {
 }
 
 void buffer_push(struct buffer* buffer, void* data, size_t size) {
+    buffer_push_partial(buffer, data, data, size);
+}
+
+void buffer_push_partial(struct buffer* buffer, void* root, void* data, size_t size) {
     buffer->size += size;
     struct buffer_entry* entry = pmalloc(buffer->pool, sizeof(struct buffer_entry));
     entry->size = size;
     entry->data = data;
-    entry->data_root = entry->data;
+    entry->data_root = root;
     llist_append(buffer->buffers, entry);
 }
 
