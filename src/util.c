@@ -90,6 +90,8 @@ uint8_t* read_file_fully(struct mempool* pool, char* path, size_t* length) {
         return NULL;
     }
     data[data_index] = 0;
-    *length = data_index;
+    if (length != NULL) {
+        *length = data_index;
+    }
     return data;
 }
