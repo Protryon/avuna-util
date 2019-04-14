@@ -44,14 +44,23 @@ uint64_t hashmap_hash_mod(uint64_t hash, size_t size) {
 
 void hashset_fixcap(struct hashset* set);
 
-void hashmap_fixcap(struct hashmap* hashmap);
+void hashmap_fixcap(struct hashmap* map);
 
 struct hashmap* hashmap_new(size_t init_cap, struct mempool* pool) {
     struct hashmap* map = pcalloc(pool, sizeof(struct hashmap));
     map->bucket_count = init_cap;
     map->buckets = pcalloc(pool, sizeof(struct hashmap_bucket_entry*) * map->bucket_count);
-    map->entry_count = 0;
     map->pool = pool;
+    return map;
+}
+
+struct hashmap* hashmap_thread_new(size_t init_cap, struct mempool* pool) {
+    struct hashmap* map = hashmap_new(init_cap, pool);
+    map->multithreaded = 1;
+    pthread_rwlock_init(&map->rwlock, NULL);
+    if (map->pool != NULL) {
+        phook(map->pool, (void (*)(void*)) pthread_rwlock_destroy, &map->rwlock);
+    }
     return map;
 }
 
@@ -59,29 +68,49 @@ struct hashset* hashset_new(size_t init_cap, struct mempool* pool) {
     struct hashset* set = pcalloc(pool, sizeof(struct hashset));
     set->bucket_count = init_cap;
     set->buckets = pcalloc(pool, sizeof(struct hashset_bucket_entry*) * set->bucket_count);
-    set->entry_count = 0;
     set->pool = pool;
     return set;
 }
 
-void hashmap_free(struct hashmap* hashmap) {
-    if (hashmap->pool != NULL) {
+struct hashset* hashset_thread_new(size_t init_cap, struct mempool* pool) {
+    struct hashset* set = hashset_new(init_cap, pool);
+    set->multithreaded = 1;
+    pthread_rwlock_init(&set->rwlock, NULL);
+    if (set->pool != NULL) {
+        phook(set->pool, (void (*)(void*)) pthread_rwlock_destroy, &set->rwlock);
+    }
+    return set;
+}
+
+void hashmap_free(struct hashmap* map) {
+    if (map->pool != NULL) {
         return;
     }
-    for (size_t i = 0; i < hashmap->bucket_count; i++) {
-        for (struct hashmap_bucket_entry* bucket = hashmap->buckets[i]; bucket != NULL;) {
+    if (map->multithreaded) {
+        pthread_rwlock_wrlock(&map->rwlock);
+    }
+    for (size_t i = 0; i < map->bucket_count; i++) {
+        for (struct hashmap_bucket_entry* bucket = map->buckets[i]; bucket != NULL;) {
             struct hashmap_bucket_entry* next = bucket->next;
             free(bucket);
             bucket = next;
         }
     }
-    free(hashmap->buckets);
-    free(hashmap);
+    free(map->buckets);
+    if (map->multithreaded) {
+        map->buckets = NULL;
+        pthread_rwlock_unlock(&map->rwlock);
+        pthread_rwlock_destroy(&map->rwlock);
+    }
+    free(map);
 }
 
 void hashset_free(struct hashset* set) {
     if (set->pool != NULL) {
         return;
+    }
+    if (set->multithreaded) {
+        pthread_rwlock_wrlock(&set->rwlock);
     }
     for (size_t i = 0; i < set->bucket_count; i++) {
         for (struct hashset_bucket_entry* bucket = set->buckets[i]; bucket != NULL;) {
@@ -91,42 +120,74 @@ void hashset_free(struct hashset* set) {
         }
     }
     free(set->buckets);
+    if (set->multithreaded) {
+        set->buckets = NULL;
+        pthread_rwlock_unlock(&set->rwlock);
+        pthread_rwlock_destroy(&set->rwlock);
+    }
     free(set);
 }
 
-void* hashmap_get(struct hashmap* hashmap, char* key) {
+void* hashmap_get(struct hashmap* map, char* key) {
     uint64_t hashum = hashmap_hash(key);
-    uint64_t hash = hashmap_hash_mod(hashum, hashmap->bucket_count);
-    for (struct hashmap_bucket_entry* bucket = hashmap->buckets[hash]; bucket != NULL; bucket = bucket->next) {
+    if (map->multithreaded) {
+        pthread_rwlock_rdlock(&map->rwlock);
+    }
+    uint64_t hash = hashmap_hash_mod(hashum, map->bucket_count);
+    for (struct hashmap_bucket_entry* bucket = map->buckets[hash]; bucket != NULL; bucket = bucket->next) {
         if (bucket->umod_hash == hashum && (key == bucket->key || (key != NULL && strcmp(bucket->key, key) == 0))) {
+            if (map->multithreaded) {
+                pthread_rwlock_unlock(&map->rwlock);
+            }
             return bucket->data;
         }
+    }
+    if (map->multithreaded) {
+        pthread_rwlock_unlock(&map->rwlock);
     }
     return NULL;
 }
 
-void* hashmap_getptr(struct hashmap* hashmap, void* key) {
-    return hashmap_getint(hashmap, (uint64_t) key >> 2);
+void* hashmap_getptr(struct hashmap* map, void* key) {
+    return hashmap_getint(map, (uint64_t) key >> 2);
 }
 
 
-void* hashmap_getint(struct hashmap* hashmap, uint64_t key) {
-    uint64_t hash = hashmap_hash_mod(key, hashmap->bucket_count);
-    for (struct hashmap_bucket_entry* bucket = hashmap->buckets[hash]; bucket != NULL; bucket = bucket->next) {
+void* hashmap_getint(struct hashmap* map, uint64_t key) {
+    if (map->multithreaded) {
+        pthread_rwlock_rdlock(&map->rwlock);
+    }
+    uint64_t hash = hashmap_hash_mod(key, map->bucket_count);
+    for (struct hashmap_bucket_entry* bucket = map->buckets[hash]; bucket != NULL; bucket = bucket->next) {
         if (bucket->umod_hash == key && bucket->key == NULL) {
+            if (map->multithreaded) {
+                pthread_rwlock_unlock(&map->rwlock);
+            }
             return bucket->data;
         }
+    }
+    if (map->multithreaded) {
+        pthread_rwlock_unlock(&map->rwlock);
     }
     return NULL;
 }
 
 int hashset_has(struct hashset* set, char* key) {
     uint64_t hashum = hashmap_hash(key);
+    if (set->multithreaded) {
+        pthread_rwlock_rdlock(&set->rwlock);
+    }
     uint64_t hash = hashmap_hash_mod(hashum, set->bucket_count);
     for (struct hashset_bucket_entry* bucket = set->buckets[hash]; bucket != NULL; bucket = bucket->next) {
         if (bucket->umod_hash == hashum && strcmp(bucket->key, key) == 0) {
+            if (set->multithreaded) {
+                pthread_rwlock_unlock(&set->rwlock);
+            }
             return 1;
         }
+    }
+    if (set->multithreaded) {
+        pthread_rwlock_unlock(&set->rwlock);
     }
     return 0;
 }
@@ -136,27 +197,39 @@ int hashset_hasptr(struct hashset* set, void* key) {
 }
 
 int hashset_hasint(struct hashset* set, uint64_t key) {
+    if (set->multithreaded) {
+        pthread_rwlock_rdlock(&set->rwlock);
+    }
     uint64_t hash = hashmap_hash_mod(key, set->bucket_count);
     for (struct hashset_bucket_entry* bucket = set->buckets[hash]; bucket != NULL; bucket = bucket->next) {
         if (bucket->umod_hash == key && bucket->key == NULL) {
+            if (set->multithreaded) {
+                pthread_rwlock_unlock(&set->rwlock);
+            }
             return 1;
         }
+    }
+    if (set->multithreaded) {
+        pthread_rwlock_unlock(&set->rwlock);
     }
     return 0;
 }
 
-void hashmap_put(struct hashmap* hashmap, char* key, void* data) {
+void hashmap_put(struct hashmap* map, char* key, void* data) {
     uint64_t hashum = hashmap_hash(key);
-    uint64_t hash = hashmap_hash_mod(hashum, hashmap->bucket_count);
-    struct hashmap_bucket_entry* bucket = hashmap->buckets[hash];
+    if (map->multithreaded) {
+        pthread_rwlock_wrlock(&map->rwlock);
+    }
+    uint64_t hash = hashmap_hash_mod(hashum, map->bucket_count);
+    struct hashmap_bucket_entry* bucket = map->buckets[hash];
     if (bucket == NULL) {
-        bucket = pmalloc(hashmap->pool, sizeof(struct hashmap_bucket_entry));
+        bucket = pmalloc(map->pool, sizeof(struct hashmap_bucket_entry));
         bucket->umod_hash = hashum;
         bucket->next = NULL;
         bucket->key = key;
         bucket->data = data;
-        hashmap->buckets[hash] = bucket;
-        hashmap->entry_count++;
+        map->buckets[hash] = bucket;
+        map->entry_count++;
         goto putret;
     }
     for (; bucket != NULL; bucket = bucket->next) {
@@ -164,36 +237,42 @@ void hashmap_put(struct hashmap* hashmap, char* key, void* data) {
             bucket->data = data;
             break;
         } else if (bucket->next == NULL) {
-            struct hashmap_bucket_entry* bucketc = pmalloc(hashmap->pool, sizeof(struct hashmap_bucket_entry));
+            struct hashmap_bucket_entry* bucketc = pmalloc(map->pool, sizeof(struct hashmap_bucket_entry));
             bucketc->umod_hash = hashum;
             bucketc->next = NULL;
             bucketc->key = key;
             bucketc->data = data;
             bucket->next = bucketc;
-            hashmap->entry_count++;
+            map->entry_count++;
             break;
         }
     }
     putret:;
-    hashmap_fixcap(hashmap);
+    hashmap_fixcap(map);
+    if (map->multithreaded) {
+        pthread_rwlock_unlock(&map->rwlock);
+    }
 }
 
-void hashmap_putptr(struct hashmap* hashmap, void* key, void* data) {
-    return hashmap_putint(hashmap, (uint64_t) key >> 2, data);
+void hashmap_putptr(struct hashmap* map, void* key, void* data) {
+    return hashmap_putint(map, (uint64_t) key >> 2, data);
 }
 
 
-void hashmap_putint(struct hashmap* hashmap, uint64_t key, void* data) {
-    uint64_t hash = hashmap_hash_mod(key, hashmap->bucket_count);
-    struct hashmap_bucket_entry* bucket = hashmap->buckets[hash];
+void hashmap_putint(struct hashmap* map, uint64_t key, void* data) {
+    if (map->multithreaded) {
+        pthread_rwlock_wrlock(&map->rwlock);
+    }
+    uint64_t hash = hashmap_hash_mod(key, map->bucket_count);
+    struct hashmap_bucket_entry* bucket = map->buckets[hash];
     if (bucket == NULL) {
-        bucket = pmalloc(hashmap->pool, sizeof(struct hashmap_bucket_entry));
+        bucket = pmalloc(map->pool, sizeof(struct hashmap_bucket_entry));
         bucket->umod_hash = key;
         bucket->next = NULL;
         bucket->key = NULL;
         bucket->data = data;
-        hashmap->buckets[hash] = bucket;
-        hashmap->entry_count++;
+        map->buckets[hash] = bucket;
+        map->entry_count++;
         goto putret;
     }
     for (; bucket != NULL; bucket = bucket->next) {
@@ -201,31 +280,35 @@ void hashmap_putint(struct hashmap* hashmap, uint64_t key, void* data) {
             bucket->data = data;
             break;
         } else if (bucket->next == NULL) {
-            struct hashmap_bucket_entry* bucketc = pmalloc(hashmap->pool, sizeof(struct hashmap_bucket_entry));
+            struct hashmap_bucket_entry* bucketc = pmalloc(map->pool, sizeof(struct hashmap_bucket_entry));
             bucketc->umod_hash = key;
             bucketc->next = NULL;
             bucketc->key = NULL;
             bucketc->data = data;
             bucket->next = bucketc;
-            hashmap->entry_count++;
+            map->entry_count++;
             break;
         }
     }
     putret:;
-    hashmap_fixcap(hashmap);
+    hashmap_fixcap(map);
+    if (map->multithreaded) {
+        pthread_rwlock_unlock(&map->rwlock);
+    }
 }
 
-void hashmap_fixcap(struct hashmap* hashmap) {
-    if ((hashmap->entry_count / hashmap->bucket_count) > 4) {
-        size_t nbuck_count = hashmap->bucket_count * 2;
-        hashmap->buckets = prealloc(hashmap->pool, hashmap->buckets,
-                                    nbuck_count * sizeof(struct hashmap_bucket_entry*));
-        memset((void*) hashmap->buckets + (hashmap->bucket_count * sizeof(struct hashmap_bucket_entry*)), 0,
-               hashmap->bucket_count * sizeof(struct hashmap_bucket_entry*));
-        for (size_t i = 0; i < hashmap->bucket_count; i++) {
+// precondition: map is locked
+void hashmap_fixcap(struct hashmap* map) {
+    if ((map->entry_count / map->bucket_count) > 4) {
+        size_t new_bucket_count = map->bucket_count * 2;
+        map->buckets = prealloc(map->pool, map->buckets,
+                                    new_bucket_count * sizeof(struct hashmap_bucket_entry*));
+        memset((void*) map->buckets + (map->bucket_count * sizeof(struct hashmap_bucket_entry*)), 0,
+               map->bucket_count * sizeof(struct hashmap_bucket_entry*));
+        for (size_t i = 0; i < map->bucket_count; i++) {
             struct hashmap_bucket_entry* lbucket = NULL;
-            for (struct hashmap_bucket_entry* bucket = hashmap->buckets[i]; bucket != NULL;) {
-                size_t ni = hashmap_hash_mod(bucket->umod_hash, nbuck_count);
+            for (struct hashmap_bucket_entry* bucket = map->buckets[i]; bucket != NULL;) {
+                size_t ni = hashmap_hash_mod(bucket->umod_hash, new_bucket_count);
                 if (ni == i) {
                     lbucket = bucket;
                     bucket = bucket->next;
@@ -233,28 +316,31 @@ void hashmap_fixcap(struct hashmap* hashmap) {
                 } else {
                     struct hashmap_bucket_entry* nbucket = bucket->next;
                     if (lbucket == NULL) {
-                        hashmap->buckets[i] = nbucket;
+                        map->buckets[i] = nbucket;
                     } else {
                         lbucket->next = nbucket;
                     }
-                    if (hashmap->buckets[ni] == NULL) {
-                        hashmap->buckets[ni] = bucket;
+                    if (map->buckets[ni] == NULL) {
+                        map->buckets[ni] = bucket;
                         bucket->next = NULL;
                     } else {
-                        bucket->next = hashmap->buckets[ni];
-                        hashmap->buckets[ni] = bucket;
+                        bucket->next = map->buckets[ni];
+                        map->buckets[ni] = bucket;
                     }
                     bucket = nbucket;
                     // no lbucket change
                 }
             }
         }
-        hashmap->bucket_count = nbuck_count;
+        map->bucket_count = new_bucket_count;
     }
 }
 
 void hashset_add(struct hashset* set, char* key) {
     uint64_t hashum = hashmap_hash(key);
+    if (set->multithreaded) {
+        pthread_rwlock_wrlock(&set->rwlock);
+    }
     uint64_t hash = hashmap_hash_mod(hashum, set->bucket_count);
     struct hashset_bucket_entry* bucket = set->buckets[hash];
     if (bucket == NULL) {
@@ -281,6 +367,9 @@ void hashset_add(struct hashset* set, char* key) {
     }
     putret:;
     hashset_fixcap(set);
+    if (set->multithreaded) {
+        pthread_rwlock_unlock(&set->rwlock);
+    }
 }
 
 void hashset_addptr(struct hashset* set, void* key) {
@@ -289,6 +378,9 @@ void hashset_addptr(struct hashset* set, void* key) {
 
 
 void hashset_addint(struct hashset* set, uint64_t key) {
+    if (set->multithreaded) {
+        pthread_rwlock_wrlock(&set->rwlock);
+    }
     uint64_t hash = hashmap_hash_mod(key, set->bucket_count);
     struct hashset_bucket_entry* bucket = set->buckets[hash];
     if (bucket == NULL) {
@@ -315,10 +407,16 @@ void hashset_addint(struct hashset* set, uint64_t key) {
     }
     putret:;
     hashset_fixcap(set);
+    if (set->multithreaded) {
+        pthread_rwlock_unlock(&set->rwlock);
+    }
 }
 
 void hashset_rem(struct hashset* set, char* key) {
     uint64_t hashum = hashmap_hash(key);
+    if (set->multithreaded) {
+        pthread_rwlock_wrlock(&set->rwlock);
+    }
     uint64_t hash = hashmap_hash_mod(hashum, set->bucket_count);
     struct hashset_bucket_entry* bucket = set->buckets[hash];
     if (bucket == NULL) {
@@ -339,6 +437,9 @@ void hashset_rem(struct hashset* set, char* key) {
         }
     }
     --set->entry_count;
+    if (set->multithreaded) {
+        pthread_rwlock_unlock(&set->rwlock);
+    }
 }
 
 void hashset_remptr(struct hashset* set, void* key) {
@@ -346,6 +447,9 @@ void hashset_remptr(struct hashset* set, void* key) {
 }
 
 void hashset_remint(struct hashset* set, uint64_t key) {
+    if (set->multithreaded) {
+        pthread_rwlock_wrlock(&set->rwlock);
+    }
     uint64_t hash = hashmap_hash_mod(key, set->bucket_count);
     struct hashset_bucket_entry* bucket = set->buckets[hash];
     if (bucket == NULL) {
@@ -365,8 +469,12 @@ void hashset_remint(struct hashset* set, uint64_t key) {
             }
         }
     }
+    if (set->multithreaded) {
+        pthread_rwlock_unlock(&set->rwlock);
+    }
 }
 
+// precondition: set is locked
 void hashset_fixcap(struct hashset* set) {
     if ((set->entry_count / set->bucket_count) > 4) {
         size_t nbuck_count = set->bucket_count * 2;
@@ -404,18 +512,24 @@ void hashset_fixcap(struct hashset* set) {
     }
 }
 
-struct hashmap* hashmap_clone(struct hashmap* hashmap, struct mempool* pool) {
-    struct hashmap* newmap = hashmap_new(hashmap->bucket_count, pool);
-    for (size_t i = 0; i < hashmap->bucket_count; i++) {
-        if (hashmap->buckets[i] == NULL) continue;
+struct hashmap* hashmap_clone(struct hashmap* map, struct mempool* pool) {
+    if (map->multithreaded) {
+        pthread_rwlock_rdlock(&map->rwlock);
+    }
+    struct hashmap* newmap = (map->multithreaded ? hashmap_thread_new : hashmap_new)(map->bucket_count, pool);
+    for (size_t i = 0; i < map->bucket_count; i++) {
+        if (map->buckets[i] == NULL) continue;
         struct hashmap_bucket_entry** newbucket = &newmap->buckets[i];
-        for (struct hashmap_bucket_entry* bucket = hashmap->buckets[i]; bucket != NULL; bucket = bucket->next) {
+        for (struct hashmap_bucket_entry* bucket = map->buckets[i]; bucket != NULL; bucket = bucket->next) {
             (*newbucket) = pcalloc(pool, sizeof(struct hashmap_bucket_entry));
             (*newbucket)->data = bucket->data;
             (*newbucket)->key = bucket->key;
             (*newbucket)->umod_hash = bucket->umod_hash;
             newbucket = &((*newbucket)->next);
         }
+    }
+    if (map->multithreaded) {
+        pthread_rwlock_unlock(&map->rwlock);
     }
     return newmap;
 }

@@ -4,6 +4,7 @@
 #include <avuna/pmem.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <pthread.h>
 
 struct hashmap_bucket_entry {
     uint64_t umod_hash;
@@ -23,6 +24,8 @@ struct hashmap {
     size_t bucket_count;
     struct hashmap_bucket_entry** buckets;
     struct mempool* pool;
+    uint8_t multithreaded;
+    pthread_rwlock_t rwlock;
 };
 
 #define ITER_MAP(map) {for (size_t bucket_i = 0; bucket_i < map->bucket_count; bucket_i++) { for (struct hashmap_bucket_entry* bucket_entry = map->buckets[bucket_i]; bucket_entry != NULL; bucket_entry = bucket_entry->next) { char* str_key = bucket_entry->key; void* ptr_key = (void*)bucket_entry->key; void* value = bucket_entry->data;
@@ -34,6 +37,8 @@ struct hashset {
     size_t bucket_count;
     struct hashset_bucket_entry** buckets;
     struct mempool* pool;
+    uint8_t multithreaded;
+    pthread_rwlock_t rwlock;
 };
 
 #define ITER_SET(set) {for (size_t bucket_i = 0; bucket_i < set->bucket_count; bucket_i++) { for (struct hashset_bucket_entry* bucket_entry = set->buckets[bucket_i]; bucket_entry != NULL; bucket_entry = bucket_entry->next) { char* str_key = bucket_entry->key; void* ptr_key = (void*)bucket_entry->key;
@@ -42,17 +47,21 @@ struct hashset {
 
 struct hashmap* hashmap_new(size_t init_cap, struct mempool* pool);
 
+struct hashmap* hashmap_thread_new(size_t init_cap, struct mempool* pool);
+
 struct hashset* hashset_new(size_t init_cap, struct mempool* pool);
 
-void hashmap_free(struct hashmap* hashmap);
+struct hashset* hashset_thread_new(size_t init_cap, struct mempool* pool);
+
+void hashmap_free(struct hashmap* map);
 
 void hashset_free(struct hashset* set);
 
-void* hashmap_get(struct hashmap* hashmap, char* key);
+void* hashmap_get(struct hashmap* map, char* key);
 
-void* hashmap_getptr(struct hashmap* hashmap, void* key);
+void* hashmap_getptr(struct hashmap* map, void* key);
 
-void* hashmap_getint(struct hashmap* hashmap, uint64_t key);
+void* hashmap_getint(struct hashmap* map, uint64_t key);
 
 int hashset_has(struct hashset* set, char* key);
 
@@ -60,11 +69,11 @@ int hashset_hasptr(struct hashset* set, void* key);
 
 int hashset_hasint(struct hashset* set, uint64_t key);
 
-void hashmap_put(struct hashmap* hashmap, char* key, void* data);
+void hashmap_put(struct hashmap* map, char* key, void* data);
 
-void hashmap_putptr(struct hashmap* hashmap, void* key, void* data);
+void hashmap_putptr(struct hashmap* map, void* key, void* data);
 
-void hashmap_putint(struct hashmap* hashmap, uint64_t key, void* data);
+void hashmap_putint(struct hashmap* map, uint64_t key, void* data);
 
 void hashset_add(struct hashset* set, char* key);
 
@@ -78,6 +87,6 @@ void hashset_remptr(struct hashset* set, void* key);
 
 void hashset_remint(struct hashset* set, uint64_t key);
 
-struct hashmap* hashmap_clone(struct hashmap* hashmap, struct mempool* pool);
+struct hashmap* hashmap_clone(struct hashmap* map, struct mempool* pool);
 
 #endif
