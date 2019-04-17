@@ -10,6 +10,7 @@
 
 #include <avuna/pmem.h>
 #include <unistd.h>
+#include <pthread.h>
 
 struct list {
     size_t size;
@@ -17,9 +18,13 @@ struct list {
     size_t capacity;
     struct mempool* pool;
     void** data;
+    int multithreaded;
+    pthread_rwlock_t rwlock;
 };
 
 struct list* list_new(size_t initial_capacity, struct mempool* pool);
+
+struct list* list_thread_new(size_t initial_capacity, struct mempool* pool);
 
 int list_append(struct list* list, void* data);
 
