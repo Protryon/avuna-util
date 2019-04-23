@@ -30,9 +30,9 @@ struct hashmap {
 
 // WARNING: ITER_MAP does not synchronize multithreaded hashmaps/sets, it is up to the consumer to do so to prevent accidental dead locks due to exiting control flow.
 
-#define ITER_MAP(map) {for (size_t bucket_i = 0; bucket_i < map->bucket_count; bucket_i++) { for (struct hashmap_bucket_entry* bucket_entry = map->buckets[bucket_i]; bucket_entry != NULL; bucket_entry = bucket_entry->next) { char* str_key = bucket_entry->key; void* ptr_key = (void*)bucket_entry->key; void* value = bucket_entry->data;
+#define ITER_MAP(map) {for (size_t bucket_i = 0; bucket_i < map->bucket_count; bucket_i++) { for (struct hashmap_bucket_entry* bucket_entry = map->buckets[bucket_i]; bucket_entry != NULL; bucket_entry = bucket_entry->next) { char* str_key = bucket_entry->key; void* ptr_key = (void*) (bucket_entry->umod_hash << 2); size_t int_key = bucket_entry->umod_hash; void* value = bucket_entry->data;
 
-#define ITER_MAPR(map, value) {for (size_t bucket_i_value = 0; bucket_i_value < map->bucket_count; bucket_i_value++) { for (struct hashmap_bucket_entry* bucket_entry_value = map->buckets[bucket_i_value]; bucket_entry_value != NULL; bucket_entry_value = bucket_entry_value->next) { char* str_key_value = bucket_entry->key; void* ptr_key_value = (void*)bucket_entry->key; void* value = bucket_entry->data;
+#define ITER_MAPR(map, value) {for (size_t bucket_i_value = 0; bucket_i_value < map->bucket_count; bucket_i_value++) { for (struct hashmap_bucket_entry* bucket_entry_value = map->buckets[bucket_i_value]; bucket_entry_value != NULL; bucket_entry_value = bucket_entry_value->next) { char* str_key_value = bucket_entry->key; void* ptr_key_value = (void*) (bucket_entry->umod_hash << 2); void* value = bucket_entry->data;
 
 #define ITER_MAP_END() }}}
 
@@ -45,7 +45,7 @@ struct hashset {
     pthread_rwlock_t rwlock;
 };
 
-#define ITER_SET(set) {for (size_t bucket_i = 0; bucket_i < set->bucket_count; bucket_i++) { for (struct hashset_bucket_entry* bucket_entry = set->buckets[bucket_i]; bucket_entry != NULL; bucket_entry = bucket_entry->next) { char* str_key = bucket_entry->key; void* ptr_key = (void*)bucket_entry->key;
+#define ITER_SET(set) {for (size_t bucket_i = 0; bucket_i < set->bucket_count; bucket_i++) { for (struct hashset_bucket_entry* bucket_entry = set->buckets[bucket_i]; bucket_entry != NULL; bucket_entry = bucket_entry->next) { char* str_key = bucket_entry->key; void* ptr_key = (void*) (bucket_entry->umod_hash << 2); size_t int_key = bucket_entry->umod_hash;
 
 #define ITER_SET_END() }}}
 

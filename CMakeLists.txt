@@ -7,7 +7,7 @@ set(CMAKE_C_STANDARD 11)
 
 set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} -Wno-discarded-qualifiers")
 
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -DDEBUG -fno-omit-frame-pointer")
 
 file(GLOB util_headers
         "include/avuna/*.h"
