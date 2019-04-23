@@ -1,2 +1,4 @@
 .idea
 cmake-build-debug
+*.deb
+_CPack_Packages

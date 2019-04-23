@@ -420,6 +420,9 @@ void hashset_rem(struct hashset* set, char* key) {
     uint64_t hash = hashmap_hash_mod(hashum, set->bucket_count);
     struct hashset_bucket_entry* bucket = set->buckets[hash];
     if (bucket == NULL) {
+        if (set->multithreaded) {
+            pthread_rwlock_unlock(&set->rwlock);
+        }
         return;
     }
     struct hashset_bucket_entry* last_bucket = NULL;
@@ -453,6 +456,9 @@ void hashset_remint(struct hashset* set, uint64_t key) {
     uint64_t hash = hashmap_hash_mod(key, set->bucket_count);
     struct hashset_bucket_entry* bucket = set->buckets[hash];
     if (bucket == NULL) {
+        if (set->multithreaded) {
+            pthread_rwlock_unlock(&set->rwlock);
+        }
         return;
     }
     struct hashset_bucket_entry* last_bucket = NULL;
