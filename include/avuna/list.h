@@ -26,7 +26,11 @@ struct list* list_new(size_t initial_capacity, struct mempool* pool);
 
 struct list* list_thread_new(size_t initial_capacity, struct mempool* pool);
 
-int list_append(struct list* list, void* data);
+void list_append(struct list* list, void* data);
+
+void list_set(struct list* list, size_t index, void* data);
+
+void list_ensure_capacity(struct list* list, size_t size);
 
 int list_find_remove(struct list* list, void* data);
 
