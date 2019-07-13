@@ -6,6 +6,12 @@
 #include <avuna/hash.h>
 #include <avuna/smem.h>
 
+void* (*pmem_malloc)(size_t size) = smalloc;
+void* (*pmem_calloc)(size_t size) = scalloc;
+void* (*pmem_realloc)(void* ptr, size_t size) = srealloc;
+void (*pmem_free)(void* ptr) = free;
+
+
 struct hook_entry {
     void (*hook)(void* arg);
 
@@ -13,7 +19,7 @@ struct hook_entry {
 };
 
 struct mempool* mempool_new() {
-    struct mempool* pool = smalloc(sizeof(struct mempool));
+    struct mempool* pool = pmem_malloc(sizeof(struct mempool));
     pool->allocations = hashset_new(16, NULL);
     pool->hooks = list_new(16, pool);
     return pool;
@@ -28,27 +34,27 @@ void pfree(struct mempool* pool) {
         entry->hook(entry->arg);
     }
     ITER_SET(pool->allocations) {
-        free(ptr_key);
+        pmem_free(ptr_key);
         ITER_SET_END();
     }
-    hashset_free(pool->allocations);
-    free(pool);
+    hashset_free2(pool->allocations, pmem_free);
+    pmem_free(pool);
 }
 
 void* pmalloc(struct mempool* pool, size_t size) {
-    void* item = smalloc(size);
+    void* item = pmem_malloc(size);
     if (pool != NULL) hashset_addptr(pool->allocations, item);
     return item;
 }
 
 void* pcalloc(struct mempool* pool, size_t size) {
-    void* item = scalloc(size);
+    void* item = pmem_calloc(size);
     if (pool != NULL) hashset_addptr(pool->allocations, item);
     return item;
 }
 
 void* prealloc(struct mempool* pool, void* ptr, size_t size) {
-    void* item = srealloc(ptr, size);
+    void* item = pmem_realloc(ptr, size);
     if (pool != NULL && item != ptr) {
         hashset_remptr(pool->allocations, ptr);
         hashset_addptr(pool->allocations, item);
@@ -80,13 +86,13 @@ void pprefree(struct mempool* pool, void* ptr) {
     if (pool != NULL && ptr != NULL && hashset_hasptr(pool->allocations, ptr)) {
         hashset_remptr(pool->allocations, ptr);
     }
-    free(ptr);
+    pmem_free(ptr);
 }
 
 void pprefree_strict(struct mempool* pool, void* ptr) {
     if (pool != NULL && ptr != NULL && hashset_hasptr(pool->allocations, ptr)) {
         hashset_remptr(pool->allocations, ptr);
-        free(ptr);
+        pmem_free(ptr);
     }
 }
 

@@ -91,7 +91,6 @@ int netmgr_add_connection(struct netmgr_thread* netmgr, struct netmgr_connection
 #pragma clang diagnostic ignored "-Wmissing-noreturn"
 
 void _netmgr_run_thread(struct netmgr_thread* param) {
-    struct mempool* pool = mempool_new();
     struct epoll_event events[128];
     while (1) {
         if (param->pre_poll != NULL) {

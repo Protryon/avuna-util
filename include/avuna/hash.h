@@ -61,6 +61,10 @@ void hashmap_free(struct hashmap* map);
 
 void hashset_free(struct hashset* set);
 
+void hashmap_free2(struct hashmap* map, void (*mfree)(void*));
+
+void hashset_free2(struct hashset* set, void (*mfree)(void*));
+
 void* hashmap_get(struct hashmap* map, char* key);
 
 void* hashmap_getptr(struct hashmap* map, void* key);

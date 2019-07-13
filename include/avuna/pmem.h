@@ -14,6 +14,13 @@
 
 #include <avuna/hash.h>
 #include <avuna/list.h>
+#include <avuna/smem.h>
+
+
+void* (*pmem_malloc)(size_t size);
+void* (*pmem_calloc)(size_t size);
+void* (*pmem_realloc)(void* ptr, size_t size);
+void (*pmem_free)(void* ptr);
 
 // single thread access only!
 struct mempool {

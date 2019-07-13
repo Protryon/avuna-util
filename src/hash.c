@@ -83,6 +83,15 @@ struct hashset* hashset_thread_new(size_t init_cap, struct mempool* pool) {
 }
 
 void hashmap_free(struct hashmap* map) {
+    hashmap_free2(map, free);
+}
+
+void hashset_free(struct hashset* set) {
+    hashset_free2(set, free);
+}
+
+
+void hashmap_free2(struct hashmap* map, void (*mfree)(void*)) {
     if (map->pool != NULL) {
         return;
     }
@@ -92,20 +101,20 @@ void hashmap_free(struct hashmap* map) {
     for (size_t i = 0; i < map->bucket_count; i++) {
         for (struct hashmap_bucket_entry* bucket = map->buckets[i]; bucket != NULL;) {
             struct hashmap_bucket_entry* next = bucket->next;
-            free(bucket);
+            mfree(bucket);
             bucket = next;
         }
     }
-    free(map->buckets);
+    mfree(map->buckets);
     if (map->multithreaded) {
         map->buckets = NULL;
         pthread_rwlock_unlock(&map->rwlock);
         pthread_rwlock_destroy(&map->rwlock);
     }
-    free(map);
+    mfree(map);
 }
 
-void hashset_free(struct hashset* set) {
+void hashset_free2(struct hashset* set, void (*mfree)(void*)) {
     if (set->pool != NULL) {
         return;
     }
@@ -115,17 +124,17 @@ void hashset_free(struct hashset* set) {
     for (size_t i = 0; i < set->bucket_count; i++) {
         for (struct hashset_bucket_entry* bucket = set->buckets[i]; bucket != NULL;) {
             struct hashset_bucket_entry* next = bucket->next;
-            free(bucket);
+            mfree(bucket);
             bucket = next;
         }
     }
-    free(set->buckets);
+    mfree(set->buckets);
     if (set->multithreaded) {
         set->buckets = NULL;
         pthread_rwlock_unlock(&set->rwlock);
         pthread_rwlock_destroy(&set->rwlock);
     }
-    free(set);
+    mfree(set);
 }
 
 void* hashmap_get(struct hashmap* map, char* key) {
