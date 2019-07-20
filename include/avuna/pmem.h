@@ -69,4 +69,7 @@ void pchild(struct mempool* parent, struct mempool* child);
 // transfer `child` from being a direct descendant of `current_parent` to `new_parent`.
 void pxfer_parent(struct mempool* current_parent, struct mempool* new_parent, struct mempool* child);
 
+// equivalent of mempool_new(), pchild
+struct mempool* psub(struct mempool* parent);
+
 #endif //AVUNA_HTTPD_PMEM_H

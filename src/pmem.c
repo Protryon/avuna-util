@@ -145,3 +145,9 @@ void pxfer_parent(struct mempool* current_parent, struct mempool* new_parent, st
     _prehook_child(child, new_parent);
     phook(new_parent, pfree, child);
 }
+
+struct mempool* psub(struct mempool* parent) {
+    struct mempool* pool = mempool_new();
+    pchild(parent, pool);
+    return pool;
+}

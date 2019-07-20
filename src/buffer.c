@@ -56,7 +56,7 @@ size_t buffer_pop(struct buffer* buffer, size_t size, uint8_t* data) {
     size_t index = 0;
     while (node != NULL && size > 0) {
         struct buffer_entry* entry = node->data;
-        if (entry->size <= size) {
+        if (entry->size < size) {
             size -= entry->size;
             memcpy(data + index, entry->data, entry->size);
             index += entry->size;
