@@ -74,7 +74,7 @@ struct llist_node* llist_before(struct llist* llist, struct llist_node* node, vo
     return new_node;
 }
 
-void llist_del(struct llist* llist, struct llist_node* node) {
+void llist_splice(struct llist* llist, struct llist_node* node) {
     if (node == NULL) {
         return;
     }
@@ -89,5 +89,13 @@ void llist_del(struct llist* llist, struct llist_node* node) {
         node->next->prev = node->prev;
     }
     --llist->size;
+}
+
+void llist_del(struct llist* llist, struct llist_node* node) {
+    if (node == NULL) {
+        return;
+    }
+    llist_splice(llist, node);
     pprefree(llist->pool, node);
 }
+

@@ -36,6 +36,8 @@ struct llist_node* llist_after(struct llist* llist, struct llist_node* node, voi
 
 struct llist_node* llist_before(struct llist* llist, struct llist_node* node, void* data);
 
+void llist_splice(struct llist* llist, struct llist_node* node);
+
 void llist_del(struct llist* llist, struct llist_node* node);
 
 #define ITER_LLIST(list, value) for (struct llist_node* node = list->head; node != NULL; node = node->next) { void* value = node->data;
