@@ -5,6 +5,7 @@
 #include <avuna/pmem.h>
 #include <avuna/hash.h>
 #include <avuna/smem.h>
+#include <stdarg.h>
 
 void* (*pmem_malloc)(size_t size) = smalloc;
 void* (*pmem_calloc)(size_t size) = scalloc;
@@ -150,4 +151,28 @@ struct mempool* psub(struct mempool* parent) {
     struct mempool* pool = mempool_new();
     pchild(parent, pool);
     return pool;
+}
+
+void* pdup(struct mempool* pool, void* raw, size_t size) {
+    void* new = pmalloc(pool, size);
+    memcpy(new, raw, size);
+    return new;
+}
+
+char* pstr(struct mempool* pool, char* raw) {
+    return pdup(pool, raw, strlen(raw + 1));
+}
+
+char* pprintf(struct mempool* pool, const char* template, ...) {
+    size_t buf_size = 1024;
+    char* output = smalloc(buf_size);
+    va_list args;
+    va_start(args, template);
+    while (vsnprintf(output, buf_size, template, args) < 0) {
+        buf_size *= 2;
+        output = srealloc(output, buf_size);
+    }
+    va_end(args);
+    pclaim(pool, output);
+    return output;
 }

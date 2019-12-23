@@ -72,4 +72,10 @@ void pxfer_parent(struct mempool* current_parent, struct mempool* new_parent, st
 // equivalent of mempool_new(), pchild
 struct mempool* psub(struct mempool* parent);
 
+void* pdup(struct mempool* pool, void* raw, size_t size);
+
+char* pstr(struct mempool* pool, char* raw);
+
+char* pprintf(struct mempool* pool, const char* template, ...);
+
 #endif //AVUNA_HTTPD_PMEM_H
